@@ -103,7 +103,7 @@ class Flock():
         plt.show()
         return plot
 
-    def animate_movement(self,dt,interval,frames,sigma,vicsek=False):
+    def animate_movement(self,dt,interval,frames,sigma,vicsek=True):
         """Creates a matplotlib animation of the birds moving """
         ##setting up plot
         fig,ax = plt.subplots()
@@ -127,7 +127,7 @@ class Flock():
         )
         return anim
     
-    def animate_movement_quiver(self,dt,interval,frames,sigma,vicsek=False):
+    def animate_movement_quiver(self,dt,interval,frames,sigma,vicsek=True):
         """Creates a quiver matplotlib animation of the birds moving """
         ##setting up plot
         fig,ax = plt.subplots()
@@ -258,3 +258,30 @@ class Flock_3d():
         p=f_3d.positions
         d = f_3d.directions
         graph =ax.quiver(p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2],length=0.6,arrow_length_ratio = 0.8,color="k")
+    
+    def animate_movement(self,sigma,num_frames,ambient_rotation=False):
+        nr =self.frame_size
+
+        def update_graph(num):
+            self.update_posdirs(1,sigma)
+            p = self.positions
+            d =self.directions
+            graph._offsets3d = (p[:,0], p[:,1], p[:,2])
+            title.set_text('3D Vicsek Birds, time={}'.format(num))
+            #ambient camera rotation
+            if ambient_rotation:
+                ##updates the azimuth angle
+                ax.azim = -60 +num
+
+        fig = plt.figure()
+        fig.set_size_inches(10,10)
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set(xlim=(0,nr),ylim=(0,nr),zlim=(0,nr))
+        title = ax.set_title('3D Vicsek Birds')
+
+        p =self.positions
+        d = self.directions
+        graph = ax.scatter(p[:,0],p[:,1],p[:,2],color="k",marker="^")
+        anim = matplotlib.animation.FuncAnimation(fig, update_graph, num_frames, 
+                                    interval=40, blit=False)
+        return anim
