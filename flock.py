@@ -172,7 +172,7 @@ class Flock():
             if display:
                 if i%(num_steps//5)==0:
                     print("Flock at time step {}".format(i))
-                    f.display_state()
+                    self.display_state()
 
         ##plotting order stat over time
         if plot:
