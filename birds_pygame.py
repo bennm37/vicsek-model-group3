@@ -5,11 +5,11 @@ from flock import *
 
 
 # Import and initialize the pygame library
-import pygame
 pygame.init()
 
 
 # Set up the drawing window
+
 screen = pygame.display.set_mode([500, 500])
 
 # Run until the user asks to quit
@@ -39,5 +39,4 @@ while running:
     # Flip the display
     pygame.display.flip()
 
-# Done! Time to quit.
 pygame.quit()
