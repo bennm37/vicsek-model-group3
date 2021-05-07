@@ -229,5 +229,6 @@ class Flock_3d():
         phi_noise = np.random.normal(0,sigma,self.N)
         phi_noise = phi_noise/np.cos(phi_noise)
         noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-        return noise
+        #returning 0s to test other methods
+        return np.zeros(self.directions.shape)
     
