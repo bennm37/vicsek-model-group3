@@ -224,11 +224,37 @@ class Flock_3d():
         self.positions = new_positions
         self.directions =new_directions
     
+    def add_noise(self,sigma,direction_sums):
+        theta_noise = np.random.normal(0,sigma,self.N)
+        phi_noise = np.random.normal(0,sigma,self.N)
+        phi_noise = phi_noise/np.cos(phi_noise)
+        ds_thetas,ds_phis = self.get_theta_phi(direction_sums)
+
+        noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
+        #returning 0s to test other methods
+        return np.zeros(self.directions.shape)
+    
     def get_noise(self,sigma):
         theta_noise = np.random.normal(0,sigma,self.N)
         phi_noise = np.random.normal(0,sigma,self.N)
         phi_noise = phi_noise/np.cos(phi_noise)
         noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-        #returning 0s to test other methods
+        # return noise
+        ##returning 0s to test other methods
         return np.zeros(self.directions.shape)
     
+    def get_theta_phi(self,directions):
+        thetas = np.zeros(self.N)
+        phis = np.zeros(self.N)
+        return thetas,phis
+    
+    def display_state(self):
+        fig = plt.figure()
+        fig.set_size_inches(10,10)
+        ax = fig.add_subplot(111, projection='3d')
+        k=2
+        ax.set(xlim=(0,15),ylim=(0,15),zlim=(0,15))
+        title = ax.set_title('3D Vicsek Birds')
+        p=f_3d.positions
+        d = f_3d.directions
+        graph =ax.quiver(p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2],length=0.6,arrow_length_ratio = 0.8,color="k")
