@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.animation as animation 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist,squareform,cdist
+from scipy.spatial.transform import Rotation as R
 from IPython.display import HTML
 plt.style.use('ggplot')
 
@@ -228,9 +229,10 @@ class Flock_3d():
         theta_noise = np.random.normal(0,sigma,self.N)
         phi_noise = np.random.normal(0,sigma,self.N)
         phi_noise = phi_noise/np.cos(phi_noise)
-        ds_thetas,ds_phis = self.get_theta_phi(direction_sums)
+        ds_rs,ds_thetas,ds_phis = self.get_spherical(direction_sums)
 
         noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
+
         #returning 0s to test other methods
         return np.zeros(self.directions.shape)
     
@@ -239,14 +241,19 @@ class Flock_3d():
         phi_noise = np.random.normal(0,sigma,self.N)
         phi_noise = phi_noise/np.cos(phi_noise)
         noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-        # return noise
+        return noise
         ##returning 0s to test other methods
-        return np.zeros(self.directions.shape)
+        # return np.zeros(self.directions.shape)
     
-    def get_theta_phi(self,directions):
-        thetas = np.zeros(self.N)
-        phis = np.zeros(self.N)
-        return thetas,phis
+    def get_spherical(self,directions):
+        x =directions[:,0]
+        y =directions[:,1]
+        z =directions[:,2]
+        x2_y2 =x**2+y**2
+        rs = np.sqrt(x2_y2 +z**2)
+        phis = 90-np.arctan2(z,np.sqrt(x2_y2))*360/(2*np.pi)
+        thetas = np.arctan2(y,x)*360/(2*np.pi)
+        return rs,thetas,phis
     
     def display_state(self):
         fig = plt.figure()
@@ -285,3 +292,63 @@ class Flock_3d():
         anim = matplotlib.animation.FuncAnimation(fig, update_graph, num_frames, 
                                     interval=40, blit=False)
         return anim
+
+class Prey(Flock):
+    def update_posdirs(self,dt,sigma,predator,repulsion_factor =1,verbose=False):
+        """Calculates and updates new positions and directions for all the birds,with additional repulsion force from predator """
+
+
+        ##update via vicsek equations,moving back over the frame if it crosses a boundary
+        new_positions = self.positions + self.get_directions()*self.speed*dt
+        new_positions = new_positions %self.frame_size
+
+        tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
+        indexs= self.get_birds_in_radius()
+
+        #removes all birds not in radius from the sum
+        tiled_directions[np.invert(indexs)] *= 0  
+        direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
+
+        ##add repulsion factor 
+        tiled_predator = np.tile(predator,(self.N,1))
+        repulse = self.positions-tiled_predator
+        repulse_norm = lag.norm(repulse,axis =1)
+        repulse_scaled = repulsion_factor*np.divide(repulse,np.tile(repulse_norm**2,(2,1)).transpose())
+        direction_sums_repulse = direction_sums+repulse_scaled
+        if verbose:
+            print(f"Repulse = {repulse}./n Repulse_norm = {repulse_norm}. Repulse_scaled ={repulse_scaled}")
+
+        new_thetas = np.arctan2(direction_sums_repulse[:,1],direction_sums_repulse[:,0])+np.random.normal(0,sigma,self.N) 
+        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        self.positions = new_positions
+        self.thetas = new_thetas
+
+class Moth(Flock):
+    def update_posdirs(self,dt,sigma,leader,attraction_factor =1,verbose=False):
+        """Calculates and updates new positions and directions for all the birds,with additional attraction force from leader """
+
+
+        ##update via vicsek equations,moving back over the frame if it crosses a boundary
+        new_positions = self.positions + self.get_directions()*self.speed*dt
+        new_positions = new_positions %self.frame_size
+
+        tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
+        indexs= self.get_birds_in_radius()
+
+        #removes all birds not in radius from the sum
+        tiled_directions[np.invert(indexs)] *= 0  
+        direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
+
+        ##add attraction factor 
+        tiled_leader = np.tile(leader,(self.N,1))
+        attract = tiled_leader-self.positions
+        attract_norm = lag.norm(attract,axis =1)
+        attract_scaled = attraction_factor*np.divide(attract,np.tile(attract_norm**2,(2,1)).transpose())
+        direction_sums_attract = direction_sums+attract_scaled
+        if verbose:
+            print(f"attract = {attract}./n attract_norm = {attract_norm}. attract_scaled ={attract_scaled}")
+
+        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N) 
+        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        self.positions = new_positions
+        self.thetas = new_thetas
