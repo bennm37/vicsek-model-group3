@@ -25,9 +25,10 @@ screen_col = WHITE
 running = True
 
 ##Setting up the Flock
-f= Prey(100,0.3,15)
-prey = True
-moth = False
+N=500
+f= Moth(N,0.3,15)
+prey = False
+moth = not prey
 Clock = pygame.time.Clock()
 while running:
 
@@ -44,7 +45,7 @@ while running:
             if event.key ==K_p:
                 old_pos =f.positions
                 old_thetas = f.thetas
-                f = Prey(100,0.3,15)
+                f = Prey(N,0.3,15)
                 f.positions = old_pos
                 f.thetas = old_thetas
                 prey =True
@@ -59,9 +60,9 @@ while running:
 
     # # Update Birds positions
     if prey:
-        f.update_posdirs(1,0.1,predator_pos*15/500,repulsion_factor=3)
+        f.update_posdirs(1,0.1,predator_pos*15/500,repulsion_factor=5)
     elif moth:
-        f.update_posdirs(1,0.1,predator_pos*15/500,attraction_factor=10)
+        f.update_posdirs(1,1,predator_pos*15/500,attraction_factor=100)
     else:
         f.update_posdirs(1,0.1)
     p =np.floor(f.positions*500/15).astype("int32")
