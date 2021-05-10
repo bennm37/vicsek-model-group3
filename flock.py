@@ -74,7 +74,7 @@ class Flock():
         self.positions = new_positions
         self.thetas = new_thetas
 
-    def display_state(self,plot_type = "q",name =None):
+    def display_state(self,plot_type = "q"):
         """Displays current postions of birds on scatter or quiver plot """
         # with plt.style.context("dark_background"):
         fig,ax = plt.subplots()
@@ -86,8 +86,6 @@ class Flock():
             d=self.get_directions()
             sf =100
             plot = plt.quiver(p[:,0],p[:,1],d[:,0],d[:,1],scale =sf,color="b")
-            if name:
-                plt.savefig(name,dpi = 150)
 
         elif plot_type =="s":
             plot= plt.scatter(p[:,0],p[:,1],marker =".",color ="b")
@@ -212,9 +210,11 @@ class Flock_3d():
         return noise
         ##returning 0s to test other methods
         # return np.zeros(self.directions.shape)
-    def get_noise_new(self,sigma):
-        theta_noise = np.uniform(0,2*np.pi,self.N)
-    
+    def get_noise(self,sigma):
+        theta_noise = np.random.uniform(0,2*np.pi,self.N)
+        phi_noise = np.random.normal(0,sigma,self.N)
+        noise = np.array([np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise),np.cos(phi_noise)]).transpose()
+        return noise
     def get_spherical(self,directions):
         x =directions[:,0]
         y =directions[:,1]
@@ -261,8 +261,9 @@ class Flock_3d():
         ##rotate the noise to the direction_sums and add it 
         ##super slow, need to fix
         rs = self.get_rotation_matrices(direction_sums)
+        num_birds = np.sum(indexs,axis=1)
         for i in range(self.N):
-            direction_sums[i] += np.matmul(rs[i],noise[i])
+            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise[i])
         
 
         ##TODO clunky, fix in morning
@@ -330,7 +331,7 @@ class Prey(Flock):
 
         ##add repulsion factor 
         tiled_predator = np.tile(predator,(self.N,1))
-        repulse = self.positions-tiled_predator
+        repulse = (self.positions-tiled_predator)%frame_size
         repulse_norm = lag.norm(repulse,axis =1)
         repulse_scaled = repulsion_factor*np.divide(repulse,np.tile(repulse_norm**2,(2,1)).transpose())
         direction_sums_repulse = direction_sums+repulse_scaled
