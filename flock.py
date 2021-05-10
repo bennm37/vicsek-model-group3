@@ -4,6 +4,8 @@ from numpy import linalg as lag
 import matplotlib
 import matplotlib.animation as animation 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import pandas as pd
 from scipy.spatial.distance import pdist,squareform,cdist
 from scipy.spatial.transform import Rotation as R
 from IPython.display import HTML
@@ -189,13 +191,59 @@ class Flock_3d():
         self.speed = speed
         self.R =1
 
+    ##GETTERS
     def get_birds_in_radius(self):
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius) """
         ##TODO find out whether own birds direction should be included
-        ##TODO add periodic boundary conditions
-        indexs = squareform(pdist(self.positions))<self.R
+        pvec =self.pvec()
+        zeros =np.zeros(pvec.shape)
+        L =self.frame_size
+        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*15,zeros)
+        pdist_wrapped = lag.norm(pvec_wrapped,axis=2)
+        indexs =pdist_wrapped<1
         return indexs
+    
+    def get_noise_old(self,sigma):
+        theta_noise = np.random.normal(0,sigma,self.N)
+        phi_noise = np.random.normal(0,sigma,self.N)
+        phi_noise = phi_noise/np.cos(phi_noise)
+        noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
+        return noise
+        ##returning 0s to test other methods
+        # return np.zeros(self.directions.shape)
+    def get_noise_new(self,sigma):
+        theta_noise = np.uniform(0,2*np.pi,self.N)
+    
+    def get_spherical(self,directions):
+        x =directions[:,0]
+        y =directions[:,1]
+        z =directions[:,2]
+        x2_y2 =x**2+y**2
+        rs = np.sqrt(x2_y2 +z**2)
+        phis = 90-np.arctan2(z,np.sqrt(x2_y2))*360/(2*np.pi)
+        thetas = np.arctan2(y,x)*360/(2*np.pi)
+        return rs,thetas,phis
+
+    def get_rotation_matrices(self,directions):
+        """Gets spherical coordinates for directions and the multiplies rotation matrices """
+        rs,thetas,phis = self.get_spherical(directions)
+        zero = np.zeros(phis.shape)
+        one =np.ones(phis.shape)
+        rot_thetas = np.array([[np.cos(thetas),-np.sin(thetas),zero],[np.sin(thetas),np.cos(thetas),zero],[zero,zero,one]])
+        rot_thetas =np.moveaxis(rot_thetas,2,0)
+        rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
+        rot_phis =np.moveaxis(rot_phis,2,0)
+        # print(f"rot_thetas ={rot_thetas},\n rot_phis = {rot_phis}")
+        return np.matmul(rot_thetas,rot_phis)
+    
+    def pvec(self):
+        """Returns a square matrix of pairwise vectors between all birds """
+        p=self.positions
+        p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,3)
+        p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,3)
+        return p_tile_v-p_tile_h
+    
 
     def update_posdirs(self,dt,sigma):
         """Calculates and updates new positions and directions for all the birds """
@@ -227,37 +275,7 @@ class Flock_3d():
         self.directions =new_directions
     
     
-    def get_noise(self,sigma):
-        theta_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = phi_noise/np.cos(phi_noise)
-        noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-        return noise
-        ##returning 0s to test other methods
-        # return np.zeros(self.directions.shape)
-    
-    def get_spherical(self,directions):
-        x =directions[:,0]
-        y =directions[:,1]
-        z =directions[:,2]
-        x2_y2 =x**2+y**2
-        rs = np.sqrt(x2_y2 +z**2)
-        phis = 90-np.arctan2(z,np.sqrt(x2_y2))*360/(2*np.pi)
-        thetas = np.arctan2(y,x)*360/(2*np.pi)
-        return rs,thetas,phis
-
-    def get_rotation_matrices(self,directions):
-        """Gets spherical coordinates for directions and the multiplies rotation matrices """
-        rs,thetas,phis = self.get_spherical(directions)
-        zero = np.zeros(phis.shape)
-        one =np.ones(phis.shape)
-        rot_thetas = np.array([[np.cos(thetas),-np.sin(thetas),zero],[np.sin(thetas),np.cos(thetas),zero],[zero,zero,one]])
-        rot_thetas =np.moveaxis(rot_thetas,2,0)
-        rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
-        rot_phis =np.moveaxis(rot_phis,2,0)
-        # print(f"rot_thetas ={rot_thetas},\n rot_phis = {rot_phis}")
-        return np.matmul(rot_thetas,rot_phis)
-    
+    ##DISPLAYERS
     def display_state(self):
         fig = plt.figure()
         fig.set_size_inches(10,10)
