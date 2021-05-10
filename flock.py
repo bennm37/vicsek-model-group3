@@ -213,8 +213,8 @@ class Flock_3d():
     def get_noise(self,sigma):
         theta_noise = np.random.uniform(0,2*np.pi,self.N)
         phi_noise = np.random.normal(0,sigma,self.N)
-        noise = np.array([np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise),np.cos(phi_noise)]).transpose()
-        return noise
+        z_noise = np.array([np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise),np.cos(phi_noise)]).transpose()
+        return z_noise
     def get_spherical(self,directions):
         x =directions[:,0]
         y =directions[:,1]
@@ -262,8 +262,14 @@ class Flock_3d():
         ##super slow, need to fix
         rs = self.get_rotation_matrices(direction_sums)
         num_birds = np.sum(indexs,axis=1)
+        k_to_i = np.array([[[0,0,1],[0,1,0],[1,0,0]]])
         for i in range(self.N):
-            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise[i])
+            x_noise = np.matmul(k_to_i,noise[i].T).reshape(3)
+            # print(k_to_i)
+            # print(noise[i])
+            # print(x_noise)
+            # print(rs[i])
+            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],x_noise)
         
 
         ##TODO clunky, fix in morning
@@ -275,7 +281,7 @@ class Flock_3d():
         self.positions = new_positions
         self.directions =new_directions
     
-    
+     
     ##DISPLAYERS
     def display_state(self):
         fig = plt.figure()
