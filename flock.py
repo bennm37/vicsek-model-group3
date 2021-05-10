@@ -28,33 +28,47 @@ class Flock():
         self.positions = np.random.uniform(0,self.frame_size,(self.N,2))
         self.thetas = np.random.uniform(0,2*np.pi,self.N)
 
-    def get_birds_in_radius_old(self):
-        """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
-        is an array of which birds are in the Nth birds radius) """
-        ##TODO find out whether own birds direction should be included
-        ##TODO add periodic boundary conditions
-        indexs = squareform(pdist(self.positions))<self.R
-        return indexs
+    # def get_birds_in_radius_old2(self):
+    #     """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
+    #     is an array of which birds are in the Nth birds radius) """
+    #     ##TODO find out whether own birds direction should be included
+    #     ##TODO add periodic boundary conditions
+    #     indexs = squareform(pdist(self.positions))<self.R
+    #     return indexs
 
+    # def get_birds_in_radius_old1(self):
+    #     """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
+    #     is an array of which birds are in the Nth birds radius) """
+    #     ##TODO find out whether own birds direction should be included
+    #     ##TODO add periodic boundary conditions
+
+    #     #make grid of 4 frames to get periodic conditions
+    #     p=self.positions
+    #     p_fx =p.copy()
+    #     p_fy=p.copy()
+    #     p_fx_fy=p.copy()
+    #     N= self.N
+    #     p_fx[:,0] += np.full(N,self.frame_size)
+    #     p_fy[:,1] += np.full(N,self.frame_size)
+    #     p_fx_fy += np.full(p.shape,self.frame_size)
+    #     grid  = np.concatenate((p,p_fx,p_fy,p_fx_fy))
+    #     grid_indexs = cdist(p,grid)<self.R
+    #     indexs = grid_indexs[:,0:N]+grid_indexs[:,N:2*N]+grid_indexs[:,2*N:3*N]+grid_indexs[:,3*N:4*N]
+    #     return indexs
+    def pvec(self):
+        """Returns a square matrix of pairwise vectors between all birds """
+        p=self.positions
+        p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,2)
+        p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,2)
+        return p_tile_v-p_tile_h
+    
     def get_birds_in_radius(self):
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius) """
         ##TODO find out whether own birds direction should be included
-        ##TODO add periodic boundary conditions
+        pass
 
-        #make grid of 4 frames to get periodic conditions
-        p=self.positions
-        p_fx =p.copy()
-        p_fy=p.copy()
-        p_fx_fy=p.copy()
-        N= self.N
-        p_fx[:,0] += np.full(N,self.frame_size)
-        p_fy[:,1] += np.full(N,self.frame_size)
-        p_fx_fy += np.full(p.shape,self.frame_size)
-        grid  = np.concatenate((p,p_fx,p_fy,p_fx_fy))
-        grid_indexs = cdist(p,grid)<self.R
-        indexs = grid_indexs[:,0:N]+grid_indexs[:,N:2*N]+grid_indexs[:,2*N:3*N]+grid_indexs[:,3*N:4*N]
-        return indexs
+
 
 
     def get_directions(self):
@@ -277,7 +291,7 @@ class Flock_3d():
         graph =ax.quiver(p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2],length=0.6,arrow_length_ratio = 0.8,color="k")
     
     def animate_movement(self,sigma,num_frames,ambient_rotation=False):
-      mpdate_graph(num):
+        def update_graph(num):
             self.update_posdirs(1,sigma)
             p = self.positions
             d =self.directions
@@ -362,4 +376,5 @@ class Moth(Flock):
         self.thetas = new_thetas
 
 class Predator(Flock):
-    def 
+    def update_posdirs(self,dt,sigma,predator,attraction_factor =1,verbose=False):
+        pass
