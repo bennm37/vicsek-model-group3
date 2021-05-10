@@ -28,33 +28,6 @@ class Flock():
         self.positions = np.random.uniform(0,self.frame_size,(self.N,2))
         self.thetas = np.random.uniform(0,2*np.pi,self.N)
 
-    # def get_birds_in_radius_old2(self):
-    #     """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
-    #     is an array of which birds are in the Nth birds radius) """
-    #     ##TODO find out whether own birds direction should be included
-    #     ##TODO add periodic boundary conditions
-    #     indexs = squareform(pdist(self.positions))<self.R
-    #     return indexs
-
-    # def get_birds_in_radius_old1(self):
-    #     """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
-    #     is an array of which birds are in the Nth birds radius) """
-    #     ##TODO find out whether own birds direction should be included
-    #     ##TODO add periodic boundary conditions
-
-    #     #make grid of 4 frames to get periodic conditions
-    #     p=self.positions
-    #     p_fx =p.copy()
-    #     p_fy=p.copy()
-    #     p_fx_fy=p.copy()
-    #     N= self.N
-    #     p_fx[:,0] += np.full(N,self.frame_size)
-    #     p_fy[:,1] += np.full(N,self.frame_size)
-    #     p_fx_fy += np.full(p.shape,self.frame_size)
-    #     grid  = np.concatenate((p,p_fx,p_fy,p_fx_fy))
-    #     grid_indexs = cdist(p,grid)<self.R
-    #     indexs = grid_indexs[:,0:N]+grid_indexs[:,N:2*N]+grid_indexs[:,2*N:3*N]+grid_indexs[:,3*N:4*N]
-    #     return indexs
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
         p=self.positions
@@ -64,10 +37,16 @@ class Flock():
     
     def get_birds_in_radius(self):
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
-        is an array of which birds are in the Nth birds radius) """
+        is an array of which birds are in the Nth birds radius). Works out if x
+        or y component differences >L/2 and wraps accordingly. """
         ##TODO find out whether own birds direction should be included
-        pass
-
+        pvec =self.pvec()
+        zeros =np.zeros(pvec.shape)
+        L =self.frame_size
+        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*15,zeros)
+        pdist_wrapped = lag.norm(pvec_wrapped,axis=2)
+        indexs =pdist_wrapped<1
+        return indexs
 
 
 
