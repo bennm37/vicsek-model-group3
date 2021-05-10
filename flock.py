@@ -216,25 +216,23 @@ class Flock_3d():
         tiled_directions[np.invert(indexs)] *= 0  
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,3),axis=1)
         noise = self.get_noise(sigma)
+
+        ##rotate the noise to the direction_sums and add it 
+        ##super slow, need to fix
+        rs = self.get_rotation_matrices(direction_sums)
+        for i in range(self.N):
+            direction_sums[i] += np.matmul(rs[i],noise[i])
+        
+
         ##TODO clunky, fix in morning
-        nxd =np.divide(direction_sums[:,0],lag.norm(direction_sums+noise,axis=1)).reshape(self.N,1)
-        nyd=np.divide(direction_sums[:,1],lag.norm(direction_sums+noise,axis=1)).reshape(self.N,1)
-        nzd =np.divide(direction_sums[:,2],lag.norm(direction_sums+noise,axis=1)).reshape(self.N,1)
+        nxd =np.divide(direction_sums[:,0],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
+        nyd=np.divide(direction_sums[:,1],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
+        nzd =np.divide(direction_sums[:,2],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
         new_directions = np.concatenate((nxd,nyd,nzd),axis=1)
         ##check whether storing more variables in memory reduces                                                                               perfomance      
         self.positions = new_positions
         self.directions =new_directions
     
-    def add_noise(self,sigma,direction_sums):
-        theta_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = phi_noise/np.cos(phi_noise)
-        ds_rs,ds_thetas,ds_phis = self.get_spherical(direction_sums)
-
-        noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-
-        #returning 0s to test other methods
-        return np.zeros(self.directions.shape)
     
     def get_noise(self,sigma):
         theta_noise = np.random.normal(0,sigma,self.N)
@@ -254,6 +252,18 @@ class Flock_3d():
         phis = 90-np.arctan2(z,np.sqrt(x2_y2))*360/(2*np.pi)
         thetas = np.arctan2(y,x)*360/(2*np.pi)
         return rs,thetas,phis
+
+    def get_rotation_matrices(self,directions):
+        """Gets spherical coordinates for directions and the multiplies rotation matrices """
+        rs,thetas,phis = self.get_spherical(directions)
+        zero = np.zeros(phis.shape)
+        one =np.ones(phis.shape)
+        rot_thetas = np.array([[np.cos(thetas),-np.sin(thetas),zero],[np.sin(thetas),np.cos(thetas),zero],[zero,zero,one]])
+        rot_thetas =np.moveaxis(rot_thetas,2,0)
+        rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
+        rot_phis =np.moveaxis(rot_phis,2,0)
+        # print(f"rot_thetas ={rot_thetas},\n rot_phis = {rot_phis}")
+        return np.matmul(rot_thetas,rot_phis)
     
     def display_state(self):
         fig = plt.figure()
@@ -267,9 +277,7 @@ class Flock_3d():
         graph =ax.quiver(p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2],length=0.6,arrow_length_ratio = 0.8,color="k")
     
     def animate_movement(self,sigma,num_frames,ambient_rotation=False):
-        nr =self.frame_size
-
-        def update_graph(num):
+      mpdate_graph(num):
             self.update_posdirs(1,sigma)
             p = self.positions
             d =self.directions
@@ -352,3 +360,6 @@ class Moth(Flock):
         ##check whether storing more variables in memory reduces                                                                               perfomance      
         self.positions = new_positions
         self.thetas = new_thetas
+
+class Predator(Flock):
+    def 

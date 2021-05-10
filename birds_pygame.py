@@ -26,8 +26,8 @@ running = True
 
 ##Setting up the Flock
 N=500
-f= Moth(N,0.3,15)
-prey = False
+f= Prey(N,0.3,15)
+prey =True
 moth = not prey
 Clock = pygame.time.Clock()
 while running:
