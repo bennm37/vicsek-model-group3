@@ -55,12 +55,13 @@ while running:
     screen.fill(screen_col)
 
     ## Update Predator Positions
-    predator_pos = np.array(pygame.mouse.get_pos())
-    pygame.draw.circle(screen,(255,0,0),predator_pos,10)
+    predator_pos = np.array([pygame.mouse.get_pos()])
+    pygame.draw.circle(screen,(255,0,0),predator_pos[0],10)
+
 
     # # Update Birds positions
     if prey:
-        f.update_posdirs(1,0.1,predator_pos*15/500,repulsion_factor=5)
+        f.update_posdirs(1,0.1,predator_pos*15/500,repulsion_factor=10)
     elif moth:
         f.update_posdirs(1,1,predator_pos*15/500,attraction_factor=100)
     else:

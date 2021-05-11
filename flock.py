@@ -5,11 +5,11 @@ import matplotlib
 import matplotlib.animation as animation 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from numpy.lib.shape_base import tile
 import pandas as pd
 from scipy.spatial.distance import pdist,squareform,cdist
 from scipy.spatial.transform import Rotation as R
 from IPython.display import HTML
-import plotly.express as px
 plt.style.use('ggplot')
 
 
@@ -59,15 +59,19 @@ class Flock():
         return normal(self.thetas).transpose()
 
 
-    def update_posdirs(self,dt,sigma):
+    def update_posdirs(self,dt,sigma,type="vicsek"):
         """Calculates and updates new positions and directions for all the birds """
-        new_positions = self.positions + self.get_directions()*self.speed*dt
+        if type =="variable":
+            speeds =np.tile(self.speed,(2,1)).T
+            new_positions = self.positions + self.get_directions()*speeds*dt
+        else:
+            new_positions = self.positions + self.get_directions()*self.speed*dt
         new_positions = new_positions %self.frame_size
 
         tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
         indexs= self.get_birds_in_radius()
 
-        #removes all birds not in radius from the sum
+        ##removes all birds not in radius from the sum
         tiled_directions[np.invert(indexs)] *= 0  
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
         new_thetas = np.arctan2(direction_sums[:,1],direction_sums[:,0])+np.random.normal(0,sigma,self.N) 
@@ -97,32 +101,8 @@ class Flock():
             print("Invalid Plot Type. {} is not supported, pls use 'q' or 's'".format(plot_type))
         plt.show()
         return plot
-
-    def animate_movement(self,dt,interval,frames,sigma,vicsek=True):
-        """Creates a matplotlib animation of the birds moving """
-        ##setting up plot
-        fig,ax = plt.subplots()
-
-        #fig.set_size_inches(18.5, 10.5)
-        ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
-        init_pos = self.positions
-        scat =ax.scatter(init_pos[0],init_pos[1],marker=".",c="b")
-
-        ##used in funcanimation to update states
-        def animate(i):
-            if vicsek:
-                self.update_posdirs(dt,sigma)
-            else:
-                self.update_pos(dt)
-            pos = self.positions
-            scat.set_offsets(pos)
-        ##generating animation
-        anim  = animation.FuncAnimation(
-            fig,animate,interval = interval,frames =frames
-        )
-        return anim
     
-    def animate_movement_quiver(self,dt,interval,frames,sigma,vicsek=True):
+    def animate_movement_quiver(self,dt,interval,frames,sigma,type="vicsek",args={}):
         """Creates a quiver matplotlib animation of the birds moving """
         ##setting up plot
         fig,ax = plt.subplots()
@@ -130,14 +110,21 @@ class Flock():
         ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
         init_pos = self.positions
         init_dir =self.get_directions()
+        if type=="variable":
+            s = self.speed
+            color = (0,0,s/np.max(s))
         q =ax.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 100,color="b")
 
         ##used in funcanimation to update states
         def animate(i):
-            if vicsek:
+            if type=="vicsek":
                 self.update_posdirs(dt,sigma)
-            else:
-                self.update_pos(dt)
+            elif type=="prey":
+                predator = args["predator"]
+                repulsion_factor = args["repulsion_factor"]
+                self.update_posdirs(dt,sigma,predator=predator,repulsion_factor=repulsion_factor)
+            elif type == "variable":
+                self.update_posdirs(dt,sigma,type="variable")
             p = self.positions
             d = self.get_directions()
             q.set_offsets(p)
@@ -179,14 +166,16 @@ class Flock():
 
 class Flock_3d():
     def __init__(self,N,speed,frame_size):
-        #     """Frame size should be given in number of radiuses """
+        """Frame size should be given in number of radiuses """
         self.frame_size =frame_size
         self.N =N
         self.positions = np.random.uniform(0,self.frame_size,(self.N,3))
+
         #projecting cylinder onto sphere to get even distribution of directions
         thetas = np.random.uniform(0,2*np.pi,self.N)
         zs = np.random.uniform(-1,1,self.N)
         self.directions = np.array([np.sqrt(1-zs**2)*np.cos(thetas),np.sqrt(1-zs**2)*np.sin(thetas),zs]).transpose()
+
         self.speed = speed
         self.R =1
 
@@ -203,27 +192,22 @@ class Flock_3d():
         indexs =pdist_wrapped<1
         return indexs
     
-    def get_noise_old(self,sigma):
-        theta_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = np.random.normal(0,sigma,self.N)
-        phi_noise = phi_noise/np.cos(phi_noise)
-        noise = np.array([np.cos(theta_noise)*np.cos(phi_noise),np.sin(theta_noise)*np.cos(phi_noise),np.sin(phi_noise)]).transpose()
-        return noise
-        ##returning 0s to test other methods
-        # return np.zeros(self.directions.shape)
     def get_noise(self,sigma):
         theta_noise = np.random.uniform(0,2*np.pi,self.N)
         phi_noise = np.random.normal(0,sigma,self.N)
-        z_noise = np.array([np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise),np.cos(phi_noise)]).transpose()
-        return z_noise
+        ##want to generate noise about symmetric about the x axis, so unconventially have x axis as pole
+        ##noise is not strictly normal as elevation angle is biased to the pole, but it is symmetric perpendicular to i^
+        noise = np.array([np.cos(phi_noise),np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise)]).transpose()
+        return noise
     def get_spherical(self,directions):
         x =directions[:,0]
         y =directions[:,1]
         z =directions[:,2]
         x2_y2 =x**2+y**2
         rs = np.sqrt(x2_y2 +z**2)
-        phis = 90-np.arctan2(z,np.sqrt(x2_y2))*360/(2*np.pi)
-        thetas = np.arctan2(y,x)*360/(2*np.pi)
+        #TODO why is this - ?
+        phis = -np.arctan2(z,np.sqrt(x2_y2))
+        thetas = np.arctan2(y,x)
         return rs,thetas,phis
 
     def get_rotation_matrices(self,directions):
@@ -236,7 +220,7 @@ class Flock_3d():
         rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
         rot_phis =np.moveaxis(rot_phis,2,0)
         # print(f"rot_thetas ={rot_thetas},\n rot_phis = {rot_phis}")
-        return np.matmul(rot_thetas,rot_phis)
+        return np.matmul(rot_phis,rot_thetas)
     
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
@@ -254,26 +238,19 @@ class Flock_3d():
         tiled_directions = np.tile(self.directions,(self.N,1,1))
         indexs= self.get_birds_in_radius()
 
-        #removes all birds not in radius from the sum
+        ##removes all birds not in radius from the sum
         tiled_directions[np.invert(indexs)] *= 0  
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,3),axis=1)
         noise = self.get_noise(sigma)
 
         ##rotate the noise to the direction_sums and add it 
-        ##super slow, need to fix
         rs = self.get_rotation_matrices(direction_sums)
         num_birds = np.sum(indexs,axis=1)
-        k_to_i = np.array([[[0,0,1],[0,1,0],[1,0,0]]])
         for i in range(self.N):
-            x_noise = np.matmul(k_to_i,noise[i].T).reshape(3)
-            # print(k_to_i)
-            # print(noise[i])
-            # print(x_noise)
-            # print(rs[i])
-            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],x_noise)
+            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise)
         
 
-        ##TODO clunky, fix in morning
+        ##TODO clunky, fix it
         nxd =np.divide(direction_sums[:,0],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
         nyd=np.divide(direction_sums[:,1],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
         nzd =np.divide(direction_sums[:,2],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
@@ -321,6 +298,7 @@ class Flock_3d():
         return anim
 
 class Prey(Flock):
+
     def update_posdirs(self,dt,sigma,predator,repulsion_factor =1,verbose=False):
         """Calculates and updates new positions and directions for all the birds,with additional repulsion force from predator """
 
@@ -336,14 +314,17 @@ class Prey(Flock):
         tiled_directions[np.invert(indexs)] *= 0  
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
 
-        ##add repulsion factor 
-        tiled_predator = np.tile(predator,(self.N,1))
-        repulse = (self.positions-tiled_predator)%frame_size
+        ##add repulsion factor multiple
+        N_pred = predator.shape[0]
+        tiled_predator = np.tile(predator,(self.N,1,1))
+        tiled_prey =np.tile(self.positions,N_pred).reshape(tiled_predator.shape)         
+        repulse = (np.sum(tiled_prey-tiled_predator,axis=1))
         repulse_norm = lag.norm(repulse,axis =1)
-        repulse_scaled = repulsion_factor*np.divide(repulse,np.tile(repulse_norm**2,(2,1)).transpose())
+        repulse_scaled = N_pred*repulsion_factor*np.divide(repulse,np.tile(repulse_norm**2,(2,1)).transpose())
+
         direction_sums_repulse = direction_sums+repulse_scaled
         if verbose:
-            print(f"Repulse = {repulse}./n Repulse_norm = {repulse_norm}. Repulse_scaled ={repulse_scaled}")
+            print(f"Repulse = {repulse}.\n Repulse_norm = {repulse_norm}.\n Repulse_scaled ={repulse_scaled}")
 
         new_thetas = np.arctan2(direction_sums_repulse[:,1],direction_sums_repulse[:,0])+np.random.normal(0,sigma,self.N) 
         ##check whether storing more variables in memory reduces                                                                               perfomance      
@@ -352,7 +333,8 @@ class Prey(Flock):
 
 class Moth(Flock):
     def update_posdirs(self,dt,sigma,leader,attraction_factor =1,verbose=False):
-        """Calculates and updates new positions and directions for all the birds,with additional attraction force from leader """
+        """Calculates and updates new positions and directions for all the birds,with additional attraction force from leader. 
+        Main use case is pygame """
 
 
         ##update via vicsek equations,moving back over the frame if it crosses a boundary
@@ -381,5 +363,77 @@ class Moth(Flock):
         self.thetas = new_thetas
 
 class Predator(Flock):
-    def update_posdirs(self,dt,sigma,predator,attraction_factor =1,verbose=False):
-        pass
+    def update_posdirs(self,dt,sigma,prey,attraction_factor =1,verbose=False):
+            ##update via vicsek equations,moving back over the frame if it crosses a boundary
+        new_positions = self.positions + self.get_directions()*self.speed*dt
+        new_positions = new_positions %self.frame_size
+
+        tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
+        indexs= self.get_birds_in_radius()
+
+        #removes all birds not in radius from the sum
+        tiled_directions[np.invert(indexs)] *= 0  
+        direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
+
+        ##add repulsion factor for multiple prey
+        N_prey = prey.shape[0]
+        tiled_prey = np.tile(prey,(self.N,1,1))
+        tiled_predator =np.tile(self.positions,N_prey).reshape(tiled_prey.shape)         
+        attract = (np.sum(tiled_prey-tiled_predator,axis=1))
+        attract_norm = lag.norm(attract,axis =1)
+        attract_scaled = N_prey*attraction_factor*np.divide(attract,np.tile(attract_norm**2,(2,1)).transpose())
+
+        direction_sums_attract = direction_sums+attract_scaled
+        if verbose:
+            print(f"attract = {attract}.\n attract_norm = {attract_norm}.\n attract_scaled ={attract_scaled}")
+
+        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N) 
+        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        self.positions = new_positions
+        self.thetas = new_thetas
+
+
+    def get_prey_in_radius(self,prey):
+        """Returns an N_pred by N_prey BOOL matrix, ith row representing which prey are in the ith 
+        predators radius"""
+        ##just returns prey to check update_posdir
+        return prey
+    
+    def animate_movement_pp(self,prey,frames,sigma,interval,repulsion_factor=1,attraction_factor=1):
+        """Creates a quiver matplotlib animation of the birds moving """
+        ##setting up plot
+        fig,ax = plt.subplots()
+        fig.set_size_inches(14,8)
+        ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
+
+        ##get starting states
+        init_pos_prey = prey.positions
+        init_dir_prey =prey.get_directions()
+        init_pos_pred = self.positions
+        init_dir_pred =self.get_directions()
+
+        ##plot the initial plot
+        qprey =ax.quiver(init_pos_prey[:,0],init_pos_prey[:,1],init_dir_prey[:,0],init_dir_prey[:,1],scale = 100,color="b")
+        qpred =ax.quiver(init_pos_pred[:,0],init_pos_pred[:,1],init_dir_pred[:,0],init_dir_pred[:,1],scale = 90,
+        color="k",headwidth=5,minshaft=0.9)
+        ##used in funcanimation to update states
+        def animate(i):
+            ##update birds positions 
+            prey.update_posdirs(1,sigma,self.positions)
+            self.update_posdirs(1,sigma,prey.positions)
+
+            ##update the quiver plots with new positions
+            p_prey = prey.positions
+            d_prey = prey.get_directions()
+            qprey.set_offsets(p_prey)
+            qprey.set_UVC(d_prey[:,0],d_prey[:,1])
+
+            p_pred = self.positions
+            d_pred = self.get_directions()
+            qpred.set_offsets(p_pred)
+            qpred.set_UVC(d_pred[:,0],d_pred[:,1])
+
+        anim  = animation.FuncAnimation(
+            fig,animate,interval = interval,frames =frames
+        )
+        return anim
