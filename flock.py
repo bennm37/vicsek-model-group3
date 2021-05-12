@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.lib.shape_base import tile
 import pandas as pd
+import plotly.graph_objects as go
 from scipy.spatial.distance import pdist,squareform,cdist
 from scipy.spatial.transform import Rotation as R
 from IPython.display import HTML
@@ -26,6 +27,8 @@ class Flock():
         self.thetas = np.random.uniform(0,2*np.pi,self.N)
         self.speed = speed
         self.R =1
+
+    ##GENERAL
     def reset(self):
         """Resets positions and directions to random states """
         self.positions = np.random.uniform(0,self.frame_size,(self.N,2))
@@ -33,11 +36,13 @@ class Flock():
 
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
+        #TODO maybe make global function for effecient reuse in pred prey/3d
         p=self.positions
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,2)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,2)
         return p_tile_v-p_tile_h
     
+    ##GETTERS
     def get_birds_in_radius(self):
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius). Works out if x
@@ -46,11 +51,10 @@ class Flock():
         pvec =self.pvec()
         zeros =np.zeros(pvec.shape)
         L =self.frame_size
-        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*15,zeros)
+        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*L,zeros)
         pdist_wrapped = lag.norm(pvec_wrapped,axis=2)
         indexs =pdist_wrapped<1
         return indexs
-
 
 
     def get_directions(self):
@@ -66,19 +70,26 @@ class Flock():
             new_positions = self.positions + self.get_directions()*speeds*dt
         else:
             new_positions = self.positions + self.get_directions()*self.speed*dt
+        ##wrapping over frame   
         new_positions = new_positions %self.frame_size
 
         tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
         indexs= self.get_birds_in_radius()
-
-        ##removes all birds not in radius from the sum
-        tiled_directions[np.invert(indexs)] *= 0  
+         ##removes all birds not in radius from the sum
+        tiled_directions[np.invert(indexs)] *= 0   #TODO could use np.where to be consistent 
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
         new_thetas = np.arctan2(direction_sums[:,1],direction_sums[:,0])+np.random.normal(0,sigma,self.N) 
-        ##check whether storing more variables in memory reduces                                                                               perfomance      
+
+        ##synchronously update positions and thetas
         self.positions = new_positions
         self.thetas = new_thetas
+    
+    def calculate_order_stat(self):
+        """Calculates the vicsek order parameter  """
+        d =self.get_directions()
+        return lag.norm(np.sum(d,axis=0))/self.N
 
+    ##DISPLAYERS
     def display_state(self,plot_type = "q"):
         """Displays current postions of birds on scatter or quiver plot """
         # with plt.style.context("dark_background"):
@@ -102,7 +113,7 @@ class Flock():
         plt.show()
         return plot
     
-    def animate_movement_quiver(self,dt,interval,frames,sigma,type="vicsek",args={}):
+    def animate_movement(self,dt,interval,frames,sigma,type="vicsek",args={}):
         """Creates a quiver matplotlib animation of the birds moving """
         ##setting up plot
         fig,ax = plt.subplots()
@@ -134,23 +145,19 @@ class Flock():
             fig,animate,interval = interval,frames =frames
         )
         return anim
-
-    def calculate_order_stat(self):
-        """Calculates the vicsek order parameter  """
-        d =self.get_directions()
-
-        return lag.norm(np.sum(d,axis=0))/self.N
     
     def plot_order_stat(self,dt,T,sigma,display=False,plot=False):
         """Given a time step and time we plot the vicsek order parameter against time """
         num_steps = T//dt
+
+        ##initialising arrays for time and vicsek order parameter
         t = np.linspace(0,T,num_steps)
         vop = np.zeros(num_steps)
         for i in range(num_steps):
             self.update_posdirs(dt,sigma)
             vop[i] = self.calculate_order_stat()
 
-            ##plotting pos of birds
+            ##plotting positions of birds 5 times over the course of T
             if display:
                 if i%(num_steps//5)==0:
                     print("Flock at time step {}".format(i))
@@ -171,7 +178,7 @@ class Flock_3d():
         self.N =N
         self.positions = np.random.uniform(0,self.frame_size,(self.N,3))
 
-        #projecting cylinder onto sphere to get even distribution of directions
+        ##projecting cylinder onto sphere to get even distribution of directions
         thetas = np.random.uniform(0,2*np.pi,self.N)
         zs = np.random.uniform(-1,1,self.N)
         self.directions = np.array([np.sqrt(1-zs**2)*np.cos(thetas),np.sqrt(1-zs**2)*np.sin(thetas),zs]).transpose()
@@ -184,10 +191,11 @@ class Flock_3d():
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius) """
         ##TODO find out whether own birds direction should be included
+        ##TODO this is identical to 2d,and pvec only different by d =3. Add dimension parameter to both ?
         pvec =self.pvec()
         zeros =np.zeros(pvec.shape)
         L =self.frame_size
-        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*15,zeros)
+        pvec_wrapped =pvec -np.where(np.abs(pvec)>L/2,np.sign(pvec)*L,zeros)
         pdist_wrapped = lag.norm(pvec_wrapped,axis=2)
         indexs =pdist_wrapped<1
         return indexs
@@ -198,8 +206,11 @@ class Flock_3d():
         ##want to generate noise about symmetric about the x axis, so unconventially have x axis as pole
         ##noise is not strictly normal as elevation angle is biased to the pole, but it is symmetric perpendicular to i^
         noise = np.array([np.cos(phi_noise),np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise)]).transpose()
-        return noise
+        # return noise
+        return np.zeros(self.directions.shape)
+
     def get_spherical(self,directions):
+        """ """
         x =directions[:,0]
         y =directions[:,1]
         z =directions[:,2]
@@ -211,19 +222,22 @@ class Flock_3d():
         return rs,thetas,phis
 
     def get_rotation_matrices(self,directions):
-        """Gets spherical coordinates for directions and the multiplies rotation matrices """
+        """Gets spherical coordinates for directions and then multiplies rotation matrices """
         rs,thetas,phis = self.get_spherical(directions)
         zero = np.zeros(phis.shape)
         one =np.ones(phis.shape)
+
+        ##see analysis for latex rotation matrices used
+        ##TODO add latex rotation matrices in analysis
         rot_thetas = np.array([[np.cos(thetas),-np.sin(thetas),zero],[np.sin(thetas),np.cos(thetas),zero],[zero,zero,one]])
         rot_thetas =np.moveaxis(rot_thetas,2,0)
         rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
         rot_phis =np.moveaxis(rot_phis,2,0)
-        # print(f"rot_thetas ={rot_thetas},\n rot_phis = {rot_phis}")
         return np.matmul(rot_phis,rot_thetas)
     
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
+        ##TODO see GBIR
         p=self.positions
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,3)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,3)
@@ -246,8 +260,9 @@ class Flock_3d():
         ##rotate the noise to the direction_sums and add it 
         rs = self.get_rotation_matrices(direction_sums)
         num_birds = np.sum(indexs,axis=1)
-        for i in range(self.N):
-            direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise)
+        ##TODO fix this
+        # for i in range(self.N):
+        #     direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise)
         
 
         ##TODO clunky, fix it
@@ -262,26 +277,49 @@ class Flock_3d():
      
     ##DISPLAYERS
     def display_state(self):
+        """Creates a 3d matplotlib quiver plot showing positions and directions """
+        ##OBSOLETE?
         fig = plt.figure()
         fig.set_size_inches(10,10)
         ax = fig.add_subplot(111, projection='3d')
-        k=2
-        ax.set(xlim=(0,15),ylim=(0,15),zlim=(0,15))
+        ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size),zlim=(0,self.frame_size))
         title = ax.set_title('3D Vicsek Birds')
-        p=f_3d.positions
-        d = f_3d.directions
+        p=self.positions
+        d = self.directions
         graph =ax.quiver(p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2],length=0.6,arrow_length_ratio = 0.8,color="k")
     
+    def display_state_plotly(self):
+        ##TODO title,labels,get rid of color bar
+        p =self.positions
+        d=self.directions
+        data = np.array([p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2]]).T
+        df =pd.DataFrame(data,columns=("x","y","z","u","v","w"))
+        fig = go.Figure(data = go.Cone(
+            x=df['x'],
+            y=df['y'],
+            z=df['z'],
+            u=df['u'],
+            v=df['v'],
+            w=df['w'],
+            colorscale = "blackbody",
+            sizemode="absolute",
+            sizeref=1))
+        fig.update_layout(scene=dict(aspectratio=dict(x=1, y=1, z=0.8),
+                             camera_eye=dict(x=1.2, y=1.2, z=0.6)))
+        fig.show()
+
+
+
     def animate_movement(self,sigma,num_frames,ambient_rotation=False):
+        """Creates a 3d matplotlib scatter animation of the flock moving over time """
         def update_graph(num):
             self.update_posdirs(1,sigma)
             p = self.positions
             d =self.directions
             graph._offsets3d = (p[:,0], p[:,1], p[:,2])
             title.set_text('3D Vicsek Birds, time={}'.format(num))
-            #ambient camera rotation
             if ambient_rotation:
-                ##updates the azimuth angle
+                ##rotates azimodially starting from -60, the default viewing point
                 ax.azim = -60 +num
 
         fig = plt.figure()
@@ -357,8 +395,8 @@ class Moth(Flock):
         if verbose:
             print(f"attract = {attract}./n attract_norm = {attract_norm}. attract_scaled ={attract_scaled}")
 
-        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N) 
-        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        ##arctan2 gives correct quadrants
+        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N)
         self.positions = new_positions
         self.thetas = new_thetas
 
@@ -375,7 +413,7 @@ class Predator(Flock):
         tiled_directions[np.invert(indexs)] *= 0  
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
 
-        ##add repulsion factor for multiple prey
+        ##add attraction factor for multiple prey
         N_prey = prey.shape[0]
         tiled_prey = np.tile(prey,(self.N,1,1))
         tiled_predator =np.tile(self.positions,N_prey).reshape(tiled_prey.shape)         
@@ -387,8 +425,7 @@ class Predator(Flock):
         if verbose:
             print(f"attract = {attract}.\n attract_norm = {attract_norm}.\n attract_scaled ={attract_scaled}")
 
-        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N) 
-        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        new_thetas = np.arctan2(direction_sums_attract[:,1],direction_sums_attract[:,0])+np.random.normal(0,sigma,self.N)   
         self.positions = new_positions
         self.thetas = new_thetas
 
