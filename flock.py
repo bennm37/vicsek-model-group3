@@ -95,7 +95,7 @@ class Flock():
         """Displays current postions of birds on scatter or quiver plot """
         # with plt.style.context("dark_background"):
         fig,ax = plt.subplots()
-        fig.set_size_inches(14, 8)
+        fig.set_size_inches(10,10)
         p=self.positions
         ax.set(xlim=(0,self.frame_size),ylim = (0,self.frame_size))
 
@@ -122,7 +122,7 @@ class Flock():
             fig,(ax1,ax2) = plt.subplots(1,2)
 
             ##creating birds inital position
-            fig.set_size_inches(18,8)
+            fig.set_size_inches(18,9)
             ax1.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
             ax1.set_title("Vicsek Birds")
             init_pos = self.positions
@@ -138,7 +138,7 @@ class Flock():
 
         else:
             fig,ax = plt.subplots()
-            fig.set_size_inches(14,8)
+            fig.set_size_inches(10,10)
             ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
             init_pos = self.positions
             init_dir =self.get_directions()

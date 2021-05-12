@@ -38,8 +38,7 @@ class Prey(Flock):
         if verbose:
             print(f"Repulse = {repulse}.\n Repulse_norm = {repulse_norm}.\n Repulse_scaled ={repulse_scaled}")
 
-        new_thetas = np.arctan2(direction_sums_repulse[:,1],direction_sums_repulse[:,0])+np.random.normal(0,sigma,self.N) 
-        ##check whether storing more variables in memory reduces                                                                               perfomance      
+        new_thetas = np.arctan2(direction_sums_repulse[:,1],direction_sums_repulse[:,0])+np.random.normal(0,sigma,self.N)   
         self.positions = new_positions
         self.thetas = new_thetas
     
