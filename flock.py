@@ -206,8 +206,7 @@ class Flock_3d():
         ##want to generate noise about symmetric about the x axis, so unconventially have x axis as pole
         ##noise is not strictly normal as elevation angle is biased to the pole, but it is symmetric perpendicular to i^
         noise = np.array([np.cos(phi_noise),np.cos(theta_noise)*np.sin(phi_noise),np.sin(theta_noise)*np.sin(phi_noise)]).transpose()
-        # return noise
-        return np.zeros(self.directions.shape)
+        return noise
 
     def get_spherical(self,directions):
         """ """
