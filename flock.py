@@ -38,6 +38,7 @@ class Flock():
         """Returns a square matrix of pairwise vectors between all birds """
         #TODO maybe make global function for effecient reuse in pred prey/3d
         p=self.positions
+        print(f"p shape ={p.shape}, N ={self.N}")
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,2)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,2)
         return p_tile_v-p_tile_h
@@ -170,7 +171,6 @@ class Flock():
             plt.show()
         return t,vop
         
-
 class Flock_3d():
     def __init__(self,N,speed,frame_size):
         """Frame size should be given in number of radiuses """
@@ -391,7 +391,7 @@ class Moth(Flock):
 
 class Predator(Flock):
     def update_posdirs(self,dt,sigma,prey,attraction_factor =1,verbose=False):
-            ##update via vicsek equations,moving back over the frame if it crosses a boundary
+        ##update via vicsek equations,moving back over the frame if it crosses a boundary
         new_positions = self.positions + self.get_directions()*self.speed*dt
         new_positions = new_positions %self.frame_size
 
@@ -464,7 +464,7 @@ class Predator(Flock):
         )
         return anim
 
-class Prey(Flock):
+class Prey_3d(Flock):
 
     def update_posdirs(self,dt,sigma,predator,repulsion_factor =1,verbose=False):
         """Calculates and updates new positions and directions for all the birds,with additional repulsion force from predator """
