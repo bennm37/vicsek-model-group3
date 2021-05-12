@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.lib.shape_base import tile
 import pandas as pd
+from pandas.io.parsers import FixedWidthFieldParser
 import plotly.graph_objects as go
 from scipy.spatial.distance import pdist,squareform,cdist
 from scipy.spatial.transform import Rotation as R
@@ -38,7 +39,6 @@ class Flock():
         """Returns a square matrix of pairwise vectors between all birds """
         #TODO maybe make global function for effecient reuse in pred prey/3d
         p=self.positions
-        print(f"p shape ={p.shape}, N ={self.N}")
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,2)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,2)
         return p_tile_v-p_tile_h
@@ -114,18 +114,38 @@ class Flock():
         plt.show()
         return plot
     
-    def animate_movement(self,dt,interval,frames,sigma,type="vicsek",args={}):
+    def animate_movement(self,dt,interval,frames,sigma,type="vicsek",args={},plot_order_stat=False):
         """Creates a quiver matplotlib animation of the birds moving """
         ##setting up plot
-        fig,ax = plt.subplots()
-        fig.set_size_inches(14,8)
-        ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
-        init_pos = self.positions
-        init_dir =self.get_directions()
-        if type=="variable":
-            s = self.speed
-            color = (0,0,s/np.max(s))
-        q =ax.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 100,color="b")
+        if plot_order_stat:
+            ##plots 2 plots side by side, one of birds moving, other of vicsek order parameter over time
+            fig,(ax1,ax2) = plt.subplots(1,2)
+
+            ##creating birds inital position
+            fig.set_size_inches(18,8)
+            ax1.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
+            ax1.set_title("Vicsek Birds")
+            init_pos = self.positions
+            init_dir =self.get_directions()
+            q =ax1.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 100,color="b")
+
+            ##setting up plot on the right 
+            ax2.set(xlim=(0,frames),ylim=(0,1))
+            ax2.set_title(f"Vicsek Order Parameter for sigma = {sigma}")
+            ts = np.linspace(1,frames,frames)
+            vops= np.zeros(ts.shape)
+            line, = ax2.plot(ts, vops, color='k')
+
+        else:
+            fig,ax = plt.subplots()
+            fig.set_size_inches(14,8)
+            ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
+            init_pos = self.positions
+            init_dir =self.get_directions()
+            if type=="variable":
+                s = self.speed
+                color = (0,0,s/np.max(s))
+            q =ax.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 100,color="b")
 
         ##used in funcanimation to update states
         def animate(i):
@@ -141,6 +161,10 @@ class Flock():
             d = self.get_directions()
             q.set_offsets(p)
             q.set_UVC(d[:,0],d[:,1])
+            if plot_order_stat:
+                vops[i] = self.calculate_order_stat()
+                line.set_data(ts[:i],vops[:i])
+                return line,
 
         anim  = animation.FuncAnimation(
             fig,animate,interval = interval,frames =frames

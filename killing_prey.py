@@ -8,7 +8,7 @@ class Prey(Flock):
         self.N = self.N-np.sum(dead)
         self.positions = self.positions[alive]
         self.thetas = self.thetas[alive]
-        print(f"killed birds: N={self.N},pos shape ={self.positions.shape}")
+        # print(f"killed birds: N={self.N},pos shape ={self.positions.shape}")
 
 
     def update_posdirs(self,dt,sigma,predator,repulsion_factor =1,verbose=False):
@@ -51,7 +51,7 @@ class Predator(Flock):
 
         ##kill birds in kill radius
         dead = np.array(self.get_prey_in_radius(prey,kill_radius),dtype="bool")
-        print(dead)
+        # print(dead)
         prey_class.kill(dead)
 
         ##update via vicsek equations,moving back over the frame if it crosses a boundary
@@ -100,6 +100,22 @@ class Predator(Flock):
         indexs =np.sum(indexs_mat,axis=0)
         return indexs
     
+    def display_state_pp(self,prey):
+        fig,ax = plt.subplots()
+        fig.set_size_inches(14,8)
+        ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
+
+        ##get starting states
+        pos_prey = prey.positions
+        dir_prey =prey.get_directions()
+        pos_pred = self.positions
+        dir_pred =self.get_directions()
+
+        ##plot the initial plot
+        ax.quiver(pos_prey[:,0],pos_prey[:,1],dir_prey[:,0],dir_prey[:,1],scale = 100,color="b")
+        ax.quiver(pos_pred[:,0],pos_pred[:,1],dir_pred[:,0],dir_pred[:,1],scale = 90,
+        color="k",headwidth=5,minshaft=0.9)
+    
     def animate_movement_pp(self,prey,frames,sigma,interval,repulsion_factor=1,attraction_factor=1):
         """Creates a quiver matplotlib animation of the birds moving """
         ##setting up plot
@@ -126,13 +142,13 @@ class Predator(Flock):
             ##update the quiver plots with new positions
             p_prey = prey.positions
             d_prey = prey.get_directions()
-            qprey.set_offsets(p_prey)
-            qprey.set_UVC(d_prey[:,0],d_prey[:,1])
-
             p_pred = self.positions
             d_pred = self.get_directions()
-            qpred.set_offsets(p_pred)
-            qpred.set_UVC(d_pred[:,0],d_pred[:,1])
+            plt.clf()
+            qprey =ax.quiver(init_pos_prey[:,0],init_pos_prey[:,1],init_dir_prey[:,0],init_dir_prey[:,1],scale = 100,color="b")
+            qpred =ax.quiver(init_pos_pred[:,0],init_pos_pred[:,1],init_dir_pred[:,0],init_dir_pred[:,1],scale = 90,
+            color="k",headwidth=5,minshaft=0.9)
+
 
         anim  = animation.FuncAnimation(
             fig,animate,interval = interval,frames =frames
