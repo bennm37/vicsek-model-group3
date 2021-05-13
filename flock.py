@@ -1,23 +1,22 @@
-
+##data handling
 import numpy as np  
 from numpy import linalg as lag
+from numpy.lib.shape_base import tile
+import pandas as pd
+from pandas.io.parsers import FixedWidthFieldParser
+
+##visualisation
 import matplotlib
 import matplotlib.animation as animation 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from numpy.lib.shape_base import tile
-import pandas as pd
-from pandas.io.parsers import FixedWidthFieldParser
-import plotly.graph_objects as go
-from scipy.spatial.distance import pdist,squareform,cdist
-from scipy.spatial.transform import Rotation as R
-from IPython.display import HTML
 plt.style.use('ggplot')
-
+import plotly.graph_objects as go
+from IPython.display import HTML
 
 ##USEFUL FUNCTIONS
 normal = lambda p: np.array([np.cos(p),np.sin(p)])
-normalise = lambda p: p/(np.sqrt(p[0]**2+p[1]**2))           
+normalise = lambda p: p/(np.sqrt(p[0]**2+p[1]**2))   
 
 class Flock():
     def __init__(self,N,speed,frame_size):
@@ -137,6 +136,8 @@ class Flock():
             line, = ax2.plot(ts, vops, color='k')
 
         else:
+            ##creates one plot of the birds moving
+
             fig,ax = plt.subplots()
             fig.set_size_inches(10,10)
             ax.set(xlim=(0,self.frame_size),ylim=(0,self.frame_size))
@@ -145,7 +146,7 @@ class Flock():
             if type=="variable":
                 s = self.speed
                 color = (0,0,s/np.max(s))
-            q =ax.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 100,color="b")
+            q =ax.quiver(init_pos[:,0],init_pos[:,1],init_dir[:,0],init_dir[:,1],scale = 70,color="b")
 
         ##used in funcanimation to update states
         def animate(i):
