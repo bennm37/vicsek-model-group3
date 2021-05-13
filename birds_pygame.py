@@ -24,11 +24,15 @@ screen_col = WHITE
 # Run until player quits
 running = True
 
-##Setting up the Flock
-N=500
-f= Prey(N,0.3,15)
+##Setting up the Flock - Change the Parameters to change the number of birds and type, then run 
+N=400
+sigma = 0.3
 prey =True
 moth = not prey
+if prey:
+    f= Prey(N,sigma,15)
+else:
+    f= Moth(N,sigma,15)
 Clock = pygame.time.Clock()
 while running:
 
