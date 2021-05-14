@@ -36,7 +36,6 @@ class Flock():
 
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
-        #TODO maybe make global function for effecient reuse in pred prey/3d
         p=self.positions
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,2)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,2)
@@ -47,7 +46,6 @@ class Flock():
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius). Works out if x
         or y component differences >L/2 and wraps accordingly. """
-        ##TODO find out whether own birds direction should be included
         pvec =self.pvec()
         zeros =np.zeros(pvec.shape)
         L =self.frame_size
@@ -76,7 +74,7 @@ class Flock():
         tiled_directions = np.tile(self.get_directions(),(self.N,1,1))
         indexs= self.get_birds_in_radius()
          ##removes all birds not in radius from the sum
-        tiled_directions[np.invert(indexs)] *= 0   #TODO could use np.where to be consistent 
+        tiled_directions[np.invert(indexs)] *= 0   
         direction_sums = np.sum(tiled_directions.reshape(self.N,self.N,2),axis=1)
         new_thetas = np.arctan2(direction_sums[:,1],direction_sums[:,0])+np.random.normal(0,sigma,self.N) 
 
@@ -218,8 +216,6 @@ class Flock_3d():
     def get_birds_in_radius(self):
         """Returns NxN BOOL array of which birds are in radius (ie the Nth row 
         is an array of which birds are in the Nth birds radius) """
-        ##TODO find out whether own birds direction should be included
-        ##TODO this is identical to 2d,and pvec only different by d =3. Add dimension parameter to both ?
         pvec =self.pvec()
         zeros =np.zeros(pvec.shape)
         L =self.frame_size
@@ -243,7 +239,6 @@ class Flock_3d():
         z =directions[:,2]
         x2_y2 =x**2+y**2
         rs = np.sqrt(x2_y2 +z**2)
-        #TODO why is this - ?
         phis = np.arctan2(z,np.sqrt(x2_y2))
         thetas = np.arctan2(y,x)
         return rs,thetas,phis
@@ -263,7 +258,6 @@ class Flock_3d():
     
     def pvec(self):
         """Returns a square matrix of pairwise vectors between all birds """
-        ##TODO see GBIR
         p=self.positions
         p_tile_v = np.tile(p,(self.N,1)).reshape(self.N,self.N,3)
         p_tile_h = np.tile(p,(1,self.N)).reshape(self.N,self.N,3)
@@ -286,11 +280,7 @@ class Flock_3d():
         ##rotate the noise to the direction_sums and add it 
         rs = self.get_rotation_matrices(direction_sums)
         num_birds = np.sum(indexs,axis=1)
-        ##TODO fix this
         
-        verbose = True
-        # if verbose:
-        #     print(f"ds={rs[1]},\n noise={noise")
         for i in range(self.N):
             direction_sums[i] +=num_birds[i]* np.matmul(rs[i],noise[i])
         
@@ -299,13 +289,13 @@ class Flock_3d():
         nyd=np.divide(direction_sums[:,1],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
         nzd =np.divide(direction_sums[:,2],lag.norm(direction_sums,axis=1)).reshape(self.N,1)
         new_directions = np.concatenate((nxd,nyd,nzd),axis=1)
-        ##check whether storing more variables in memory reduces                                                                               perfomance      
+
         self.positions = new_positions
         self.directions =new_directions
     
     
     def display_state_plotly(self):
-        ##TODO title,labels,get rid of color bar
+        """Creates an interactive plotly cone plot of birds positions and directions"""
         p =self.positions
         d=self.directions
         data = np.array([p[:,0],p[:,1],p[:,2],d[:,0],d[:,1],d[:,2]]).T
