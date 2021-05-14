@@ -113,8 +113,11 @@ class Flock():
         plt.show()
         return plot
     
-    def animate_movement(self,dt,interval,frames,sigma,type="vicsek",args={},plot_order_stat=False):
+    def animate_movement(self,frames,sigma,type="vicsek",args={},plot_order_stat=False):
         """Creates a quiver matplotlib animation of the birds moving """
+        ##variables
+        dt =1
+        interval = 40  #gives smooth animations
         ##setting up plot
         if plot_order_stat:
             ##plots 2 plots side by side, one of birds moving, other of vicsek order parameter over time
