@@ -244,7 +244,7 @@ class Flock_3d():
         x2_y2 =x**2+y**2
         rs = np.sqrt(x2_y2 +z**2)
         #TODO why is this - ?
-        phis = -np.arctan2(z,np.sqrt(x2_y2))
+        phis = np.arctan2(z,np.sqrt(x2_y2))
         thetas = np.arctan2(y,x)
         return rs,thetas,phis
 
@@ -258,7 +258,7 @@ class Flock_3d():
         ##TODO add latex rotation matrices in analysis
         rot_thetas = np.array([[np.cos(thetas),-np.sin(thetas),zero],[np.sin(thetas),np.cos(thetas),zero],[zero,zero,one]])
         rot_thetas =np.moveaxis(rot_thetas,2,0)
-        rot_phis = np.array([[np.cos(phis),zero,np.sin(phis)],[zero,one,zero],[-np.sin(phis),zero,np.cos(phis)]])
+        rot_phis = np.array([[np.cos(phis),zero,-np.sin(phis)],[zero,one,zero],[np.sin(phis),zero,np.cos(phis)]])
         rot_phis =np.moveaxis(rot_phis,2,0)
         return np.matmul(rot_phis,rot_thetas)
     
